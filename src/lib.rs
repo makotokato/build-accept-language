@@ -1,4 +1,4 @@
-use icu_locale::{langid, LanguageIdentifier, Locale, LocaleExpander, ParseError};
+use icu_locale::{LanguageIdentifier, Locale, LocaleExpander, ParseError, langid};
 
 /// Builds the language tag list for an `Accept-Language` header out of the
 /// requested locales, in order of preference.
@@ -93,6 +93,15 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_accept_language_ignore_case() {
+        let locales = vec!["EN-us".to_string(), "en-us".to_string()];
+        let expected = vec!["en-US".to_string(), "en".to_string()];
+
+        let result = generate_accept_language(&locales).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_generate_accept_language_multiple_regins() {
         let locales = vec![
             "es-MX".to_string(),
@@ -134,6 +143,28 @@ mod tests {
             "fr-FR".to_string(),
             "en".to_string(),
             "fr".to_string(),
+        ];
+
+        let result = generate_accept_language(&locales).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_generate_accept_language_duplicated2() {
+        let locales = vec![
+            "en-US".to_string(),
+            "zh-TW".to_string(),
+            "ja-JP".to_string(),
+            "zh-CN".to_string(),
+        ];
+        let expected = vec![
+            "en-US".to_string(),
+            "en".to_string(),
+            "zh-TW".to_string(),
+            "ja-JP".to_string(),
+            "ja".to_string(),
+            "zh-CN".to_string(),
+            "zh".to_string(),
         ];
 
         let result = generate_accept_language(&locales).unwrap();
