@@ -1,0 +1,12 @@
+[package]
+name = "build-accept-language"
+version = "0.1.0"
+edition = "2024"
+authors = ["Makoto Kato <m_kato@ga2.so-net.ne.jp>"]
+description = "A library for building Accept-Language headers."
+license = "MIT/Apache-2.0"
+
+[dependencies.icu_locale]
+version = "2"
+default-features = false
+features = ["compiled_data"]
