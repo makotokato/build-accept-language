@@ -286,17 +286,3 @@ mod tests {
     }
 }
 
-#[cfg(test)]
-mod scratch {
-    use super::*;
-    #[test]
-    fn probe() {
-        let exp = LocaleExpander::new_extended();
-        for s in ["zh-Hant-CN","zh-Hans-TW","sr-Cyrl-US","ru-Latn-RU","en-Dsrt-US","ca-ES-valencia","zh-Hant","sr-Latn","uz-Cyrl-UZ","ha-Arab-NG"] {
-            let id: LanguageIdentifier = s.parse().unwrap();
-            let mut m = id.clone();
-            exp.minimize(&mut m);
-            println!("{s:16} -> {m}");
-        }
-    }
-}
