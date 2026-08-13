@@ -42,24 +42,16 @@ fn build_accept_language(langids: &[LanguageIdentifier]) -> Vec<String> {
         let bare = LanguageIdentifier::from(langid.language);
 
         // The region is what the user asked for, and it implies the script, so
-        // `zh-Hans-CN` goes out as `zh-CN`: servers negotiate a region far more
-        // reliably than a script subtag.
-        let regional = langid.region.map(|region| {
+        // `zh-Hans-CN` goes out as `zh-CN`.
+        let region = langid.region.or_else(|| {
+            let mut minimized = langid.clone();
+            expander.minimize(&mut minimized);
+            minimized.region
+        });
+        if let Some(region) = region {
             let mut regional = bare.clone();
             regional.region = Some(region);
-            regional
-        });
-        if let Some(regional) = &regional {
-            push_unique(&mut tags, regional);
-        }
-
-        // Minimizing keeps only what the language does not already imply, which
-        // is how a meaningful script or variant still reaches the server
-        // (`sr-Latn`, `ca-valencia`) after the region-only tag above dropped it.
-        let mut minimized = langid.clone();
-        expander.minimize(&mut minimized);
-        if minimized != bare && Some(&minimized) != regional.as_ref() {
-            push_unique(&mut tags, &minimized);
+            push_unique(&mut tags, &regional);
         }
 
         // The bare language matches worse than any region the user actually
@@ -196,6 +188,42 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_accept_language_script() {
+        // The script goes no further than the region it came with, even when the
+        // language does not imply it: `sr-Latn` is not a tag servers negotiate.
+        let locales = vec!["sr-Latn-RS".to_string(), "ca-ES-valencia".to_string()];
+        let expected = vec![
+            "sr-RS".to_string(),
+            "sr".to_string(),
+            "ca-ES".to_string(),
+            "ca".to_string(),
+            "en-US".to_string(),
+            "en".to_string(),
+        ];
+
+        let result = generate_accept_language(&locales).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_generate_accept_language_script_without_region() {
+        // Nothing names a region here, so the script has to supply one: dropping
+        // it would leave bare `zh` and lose the request for traditional Chinese.
+        // `zh-Hans` asks for nothing `zh` does not already say, and minimizes
+        // away to it rather than inventing a region of its own.
+        let locales = vec!["zh-Hant".to_string(), "zh-Hans".to_string()];
+        let expected = vec![
+            "zh-TW".to_string(),
+            "zh".to_string(),
+            "en-US".to_string(),
+            "en".to_string(),
+        ];
+
+        let result = generate_accept_language(&locales).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_generate_accept_language_unicode_extension() {
         let locales = vec![
             "en-US-u-mu-celsius".to_string(),
@@ -255,5 +283,20 @@ mod tests {
             generate_accept_language_lossy(&locales),
             generate_accept_language(&locales).unwrap()
         );
+    }
+}
+
+#[cfg(test)]
+mod scratch {
+    use super::*;
+    #[test]
+    fn probe() {
+        let exp = LocaleExpander::new_extended();
+        for s in ["zh-Hant-CN","zh-Hans-TW","sr-Cyrl-US","ru-Latn-RU","en-Dsrt-US","ca-ES-valencia","zh-Hant","sr-Latn","uz-Cyrl-UZ","ha-Arab-NG"] {
+            let id: LanguageIdentifier = s.parse().unwrap();
+            let mut m = id.clone();
+            exp.minimize(&mut m);
+            println!("{s:16} -> {m}");
+        }
     }
 }
